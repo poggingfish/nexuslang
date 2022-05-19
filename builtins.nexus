@@ -1,0 +1,119 @@
+c_code
+#include <ncurses.h>
+end_c_code
+set int _a_ 97
+set int _b_ 98
+set int _c_ 99
+set int _d_ 100
+set int _e_ 101
+set int _f_ 102
+set int _g_ 103
+set int _h_ 104
+set int _i_ 105
+set int _j_ 106
+set int _k_ 107
+set int _l_ 108
+set int _m_ 109
+set int _n_ 110
+set int _o_ 111
+set int _p_ 112
+set int _q_ 113
+set int _r_ 114
+set int _s_ 115
+set int _t_ 116
+set int _u_ 117
+set int _v_ 118
+set int _w_ 119
+set int _x_ 120
+set int _y_ 121
+set int _z_ 122
+set int _A_ 65
+set int _B_ 66
+set int _C_ 67
+set int _D_ 68
+set int _E_ 69
+set int _F_ 70
+set int _G_ 71
+set int _H_ 72
+set int _I_ 73
+set int _J_ 74
+set int _K_ 75
+set int _L_ 76
+set int _M_ 77
+set int _N_ 78
+set int _O_ 79
+set int _P_ 80
+set int _Q_ 81
+set int _R_ 82
+set int _S_ 83
+set int _T_ 84
+set int _U_ 85
+set int _V_ 86
+set int _W_ 87
+set int _X_ 88
+set int _Y_ 89
+set int _Z_ 90
+set int _0_ 48
+set int _1_ 49
+set int _2_ 50
+set int _3_ 51
+set int _4_ 52
+set int _5_ 53
+set int _6_ 54
+set int _7_ 55
+set int _8_ 56
+set int _9_ 57
+set int _SPACE_ 32
+set int _ENTER_ 13
+set int _ESC_ 27
+set int _BACKSPACE_ 8
+set int _NEWLINE_ 10
+set int _COMMA_ 44
+set int _PERIOD_ 46
+set int _MINUS_ 45
+set int _SLASH_ 47
+set int _SEMICOLON_ 59
+set int _EQUALS_ 61
+set int _LEFTBRACKET_ 91
+set int _RIGHTBRACKET_ 93
+set int _BACKSLASH_ 92
+set int _QUOTE_ 39
+set int _TILDE_ 126
+set int _PLUS_ 43
+set int _LESS_ 60
+set int _GREATER_ 62
+set int _QUESTION_ 63
+set int _EXCLAMATION_ 33
+func int __init__
+c_code
+cbreak();
+echo();
+initscr();
+end_c_code
+end
+func int __putchar__ int c
+c_code
+putchar(c);
+end_c_code
+end
+func int __getchar__
+c_code
+int c;
+while ((c = getch()) != ERR)
+{
+    return c;
+}
+end_c_code
+end
+func int __call_exit__  
+c_code
+// Reset curses mode
+endwin();
+end_c_code
+end
+func char* __change__ char* s, int c, int new_value
+c_code
+s[c] = (char) new_value;
+end_c_code
+return s
+end
