@@ -1,6 +1,3 @@
-c_code
-#include <ncurses.h>
-end_c_code
 set int _a_ 97
 set int _b_ 98
 set int _c_ 99
@@ -84,36 +81,74 @@ set int _LESS_ 60
 set int _GREATER_ 62
 set int _QUESTION_ 63
 set int _EXCLAMATION_ 33
-func int __init__
-c_code
-cbreak();
-echo();
-initscr();
-end_c_code
-end
 func int __putchar__ int c
 c_code
 putchar(c);
 end_c_code
 end
-func int __getchar__
-c_code
-int c;
-while ((c = getch()) != ERR)
-{
-    return c;
-}
-end_c_code
-end
-func int __call_exit__  
-c_code
-// Reset curses mode
-endwin();
-end_c_code
-end
-func char* __change__ char* s, int c, int new_value
+func char_array change char* s, int c, int new_value
 c_code
 s[c] = (char) new_value;
+char* a = s;
 end_c_code
-return s
+end
+func char readc char* s, int c
+c_code
+return s[c];
+end_c_code
+end
+func int iterate int i
+add int i 1
+return i
+end
+func int flush
+c_code
+fflush(stdout);
+end_c_code
+end
+func int adds
+set int x
+set int y
+pop x
+pop y
+add int x y
+push x
+end
+func int subs 
+set int x
+set int y
+pop x
+pop y
+sub int x y
+push x
+end
+func int muls
+set int x
+set int y
+pop x
+pop y
+mul int x y
+push x
+end
+func int divs
+set int x
+set int y
+pop x
+pop y
+div int x y
+push x
+end
+func int swaps
+set int x
+set int y
+pop x
+pop y
+push x
+push y
+end
+func int __exit__ int code
+c_code
+exit(code);
+end_c_code
+return 0
 end

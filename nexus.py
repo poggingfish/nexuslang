@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 #Nexuslang > C codegen
 #Created by: poggingfish
 #First created: 05/15/2022
@@ -7,8 +9,15 @@ import sys # for args
 import subprocess # for calling gcc
 import os
 import colorama
+import time
+import sys
+import random
+builtins_location = "/opt/nexus/builtins.nexus"
+main_file = sys.argv[1]
+quiet = False
 line = ""
 current_file = ""
+main_defed = False
 funcs = []
 def error(message):
     global line
@@ -17,30 +26,44 @@ def error(message):
     print("error at: " + " ".join(line))
     os.remove(current_file.replace(".nexus", ".c"))
     sys.exit()
+def warning(message):
+    global line
+    global linenum
+    print(colorama.Fore.YELLOW + "Warning: " + colorama.Fore.RESET + message + " at line " + str(linenum))
+    print("warning at: " + " ".join(line))
 def compile(file_name, keep_file=False, debug_info=False):
     global linenum
     global line
     global funcs
     global current_file
+    global main_defed
+    global quiet
     c_code = False
-    print("Starting compilation of " + file_name)
+    numloops_ended = 0
+    numloops = 0
+    ifs = 0
     with open(file_name, 'r') as f:
         lines = f.readlines()
-    out = open(file_name.replace(".nexus", ".c"), 'w')
-    if file_name != "builtins.nexus":
-        compile("builtins.nexus", True, debug_info)
+    out = open(file_name.replace(".nexus", ".c").split("/")[-1], 'w')
+    if file_name == main_file:
+        compile("/opt/nexus/builtins.nexus", True)
+        code_gen_start = time.perf_counter()
         out.write("#include <unistd.h>\n")
         out.write("#include <stdio.h> //Codegen\n")
         out.write("#include <stdlib.h> //Codegen\n")
         out.write("#include <string.h> //Codegen\n")
         out.write("#include <math.h> //Codegen\n")
+        out.write("int stack[1024];\n")
+        out.write("int stack_ptr = 0;\n")
         out.write("// START OF BUILTINS\n")
         out.write(open("builtins.c", 'r').read())
         os.remove("builtins.c")
         out.write("// END OF BUILTINS\n")
+    else:
+        code_gen_start = time.perf_counter()
     current_file = file_name
     for line in lines:
-        if file_name != "builtins.nexus":
+        if file_name == main_file:
             linenum += 1
         if c_code:
             if line.strip() == "end_c_code":
@@ -55,20 +78,32 @@ def compile(file_name, keep_file=False, debug_info=False):
         line = line.replace("\n", "")
         line = line.replace("  ", " ")
         line = line.split(" ")
+        if line[0] in funcs:
+            out.write(line[0] + "(" + ",".join(line[1:]) + "); // Call\n")
+        elif line[0] in (x.replace("__","") for x in funcs):
+            out.write("__"+line[0] + "__(" + ",".join(line[1:]) + "); // Call\n")
         if line[0] == "func":
             if len(line) < 2:
                 error("func takes exactly 1 argument")
             if debug_info:
                 print("Function: " + line[2])
+            if line[2] == "main":
+                main_defed = True
             funcs.append(line[2])
             if line[1] == "int":
                 out.write("int ")
+            elif line[1] == "char_array":
+                out.write("char* ")
+            elif line[1] == "char":
+                out.write("char ")
             if len(line) >= 3:
                 out.write(line[2] + "(" + " ".join(line[3:]) + ") { //func\n")
             else:
                 out.write(line[2] + "() { //func\n")
         if line[0] == "end":
             out.write("} //end\n")
+            if ifs > 0:
+                ifs -= 1
         if line[0] == "set":
             if line[1] == "int":
                 if len(line) < 3:
@@ -92,6 +127,17 @@ def compile(file_name, keep_file=False, debug_info=False):
                     out.write("char " + line[2] + "[]; //set\n")
                     if debug_info:
                         print("Set char_array: " + line[2])
+            elif line[1] == "char":
+                if len(line) < 3:
+                    error("set char takes at least 2 arguments")
+                elif len(line) == 4:
+                    out.write("char " + line[2] + " = " + line[3] + "; //set\n")
+                    if debug_info:
+                        print("Set char: " + line[2] + " = " + line[3])
+                else:
+                    out.write("char " + line[2] + "; //set\n")
+                    if debug_info:
+                        print("Set char: " + line[2])
             else:
                 if len(line) < 2:
                     error("set takes at least 2 arguments")
@@ -197,26 +243,80 @@ def compile(file_name, keep_file=False, debug_info=False):
                 out.write("if(" + line[2] + " >= " + line[3] + ") {\n")
                 if debug_info:
                     print("If ge: " + line[2] + " >= " + line[3])
+            ifs += 1
         if line[0] == "c_code":
             c_code = True
         if line[0] == "loop_until_break":
             out.write("while (1) {\n")
             if debug_info:
                 print("Loop until break")
+            numloops_ended += 1
+            numloops +1
         if line[0] == "break":
+            if numloops_ended < 0:
+                error("Break outside of loop")
+            if numloops_ended == 0 and ifs == 0:
+                warning("Possibly useless break")
             out.write("break;\n")
             if debug_info:
                 print("Break")
+            numloops_ended -= 1
         if line[0] == "sleep":
             if len(line) != 2:
                 error("sleep takes exactly 1 argument")
             #Convert us to ms
             out.write("usleep(" + line[1] + " * 1000);\n")
-    if file_name != "builtins.nexus":  
-        print(file_name + " - Successfully generated C code")
+        if line[0] == "push":
+            if len(line) != 2:
+                error("push takes exactly 1 argument")
+            out.write("stack[stack_ptr++] = " + line[1] + "; //push \n")
+        if line[0] == "pop":
+            if len(line) != 2:
+                error("pop takes exactly 1 argument")
+            out.write(line[1] + " = stack[--stack_ptr]; //pop \n")
+    if numloops_ended > 0 and ifs == 0:
+        error("Possible infinite loop")
+    code_gen_end = time.perf_counter()
+    code_gen = code_gen_end - code_gen_start
+    # Covert to us
+    if not quiet:
+        print("Code generation time: " + str(round(code_gen * 1000000,3)) + "μs")
+    if file_name == main_file:
+        if main_defed == False:
+            out.write("int main() {\n")
+            out.write("\treturn 0;\n")
+            out.write("}\n")
         out.close()
-        subprocess.call(["gcc", file_name.replace(".nexus", ".c"),  "-lncurses", "-o",  file_name.replace(".nexus", "")])
+        subprocess.call(["gcc", file_name.replace(".nexus", ".c"), "-o",  file_name.replace(".nexus", "")])
         if not keep_file:
             os.remove(file_name.replace(".nexus", ".c"))
-        print(file_name + " - Successfully compiled C code")
-compile("code.nexus", True, True)
+if os.path.isfile("builtins.nexus"):
+    with open("builtins.nexus") as f:
+        builtins = f.read()
+    with open(builtins_location, "w") as f:
+        f.write(builtins)
+else:
+    if not os.path.isfile(builtins_location):
+        error("Builtins file not found")
+if sys.argv[1] == "--install":
+    #Check if user is root
+    if os.geteuid() != 0:
+        print("You must be root to install")
+        sys.exit(1)
+    print("Installing nexus to /usr/bin/nexus")
+    os.system("cp ./nexus.py /usr/bin/nexus")
+    os.chmod("/usr/bin/nexus", 0o755)
+    print("Done!")
+    sys.exit(0)
+try:
+    sys.argv[2]
+    if sys.argv[2] == "--quiet":
+        quiet = True
+except IndexError:
+    pass
+compile_time_start = time.perf_counter()
+compile(sys.argv[1], True, False)
+compile_time_end = time.perf_counter()
+compile_time = compile_time_end - compile_time_start
+if not quiet:
+    print("Compile time: " + str(round(compile_time*1000,1)) + "ms")
